@@ -8,6 +8,9 @@ from pygal.style import DarkSolarizedStyle
 log_file_name = "server.log"
 output_dir = "./"
 
+js = ["http://kozea.github.com/pygal.js/javascripts/svg.jquery.js",
+	"http://kozea.github.com/pygal.js/javascripts/pygal-tooltips.js"]
+
 chat_re = re.compile(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) \[INFO\] <(\w+)> (.+)")
 slain_re = re.compile(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) \[INFO\] (\w+) was slain by (\w+)")
 fell_re = re.compile(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) \[INFO\] (\w+) fell from a high place")
@@ -170,8 +173,6 @@ for line in log_file:
 
 last_date = datetime.strptime(line[0:18],"%Y-%m-%d %H:%M:%S")
 
-js = ["https://www.claudex.be/minestats/js/svg.jquery.js",
-	"https://www.claudex.be/minestats/js/pygal-tooltips.js"]
 user_death_chart = pygal.Pie(style=DarkSolarizedStyle, js=js)
 user_death_chart.title = "Mort par utilisateur (%s)" % last_date
 for user in users_kill:
