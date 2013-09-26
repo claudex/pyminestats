@@ -5,7 +5,7 @@ import pygal
 from datetime import datetime, timedelta
 from pygal.style import DarkSolarizedStyle
 
-log_file_name = "./server.log"
+log_file_name = "server.log"
 output_dir = "./"
 
 chat_re = re.compile(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) \[INFO\] <(\w+)> (.+)")
@@ -13,6 +13,7 @@ slain_re = re.compile(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) \[INFO\] (\w+) was
 fell_re = re.compile(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) \[INFO\] (\w+) fell from a high place")
 doomed_re = re.compile(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) \[INFO\] (\w+) was doomed to fall( by \w+)?")
 lava_re = re.compile(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) \[INFO\] (\w+) tried to swim in lava( to escape \w+)?")
+cactus_re = re.compile(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) \[INFO\] (\w+) was pricked to death$")
 
 join_re = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) \[INFO\] (\w+) joined the game$")
 left_re = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) \[INFO\] (\w+) left the game$")
@@ -23,6 +24,7 @@ doomed_kill = dict()
 doomed_no_mod = "<himself>"
 nb_lava_kill = 0
 lava_escape = dict()
+nb_cactus_kill = 0
 users_kill = dict()
 
 user_time = dict()
@@ -103,13 +105,26 @@ def check_lava(line):
 			nb_lava_kill += 1
 		ret = True
 	return ret
+
+def check_cactus(line):
+	m = cactus_re.match(line)
+	if m:
+		global nb_cactus_kill
+		date = m.group(1)
+		user = m.group(2)
+		add_user_kill(user)
+		nb_cactus_kill += 1
+		return True
+	else:
+		return False
 		
 def check_kill(line):
 	ret = True
 	if not check_slain(line):
 		if not check_fall(line):
 			if not check_lava(line):
-				ret = False
+				if not check_cactus(line):
+					ret = False
 	return ret
 
 def check_connection(line):
@@ -154,32 +169,6 @@ for line in log_file:
 			check_connection(line)
 
 last_date = datetime.strptime(line[0:18],"%Y-%m-%d %H:%M:%S")
-print "death by user"
-for user in users_kill:
-	print "%s : %d" % (user, users_kill[user])
-
-print
-print "slain death"
-for mob in slain_kill:
-	print "%s : %d" % (mob, slain_kill[mob])
-
-print
-print "fell death %d" % (nb_fell_kill)
-for mob in doomed_kill:
-	print "%s : %d " % (mob, doomed_kill[mob])
-
-print
-print "fell in lava: %d" % (nb_lava_kill)
-for mob in lava_escape:
-	print "%s : %d" % (mob, lava_escape[mob])
-
-#print
-#for count in connection_count:
-#	print "%s : %d" % (count[0], count[1])
-
-print
-for user in user_time:
-	print "%s : %s" % (user, user_time[user][0])
 
 js = ["https://www.claudex.be/minestats/js/svg.jquery.js",
 	"https://www.claudex.be/minestats/js/pygal-tooltips.js"]
@@ -221,7 +210,21 @@ death_type_chart.title = "Type de mort (%s)" % last_date
 death_type_chart.add("Tue", slain_kill_count)
 death_type_chart.add("Chute", fell_kill_count)
 death_type_chart.add("Lave", lava_kill_count)
+death_type_chart.add("Cactus", nb_cactus_kill)
 death_type_chart.render_to_file(output_dir+"total_death.svg")
+
+death_prop_chart = pygal.Pie(style=DarkSolarizedStyle, js=js)
+death_prop_chart.title = "Mort par type (%s)" % last_date
+for mob in slain_kill:
+	death_prop_chart.add("Slain by " +mob, slain_kill[mob])
+death_prop_chart.add("Chutte tout seul", nb_fell_kill)
+for mob in doomed_kill:
+	death_prop_chart.add("Chutte par " + mob, doomed_kill[mob])
+death_prop_chart.add("Lave tout seul", nb_lava_kill)
+for mob in lava_escape:
+	death_prop_chart.add("Lave par " + mob, lava_escape[mob])
+death_type_chart.add("Cactus", nb_cactus_kill)
+death_prop_chart.render_to_file(output_dir+"death_prop.svg")
 
 connection_chart = pygal.DateY(style=DarkSolarizedStyle, show_dots=False,
 	x_label_rotation=20, show_legend=False, js=js)
